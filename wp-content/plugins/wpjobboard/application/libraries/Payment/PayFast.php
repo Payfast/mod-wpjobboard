@@ -61,8 +61,10 @@ class Wpjb_Payment_PayFast implements Wpjb_Payment_Interface
     public function __construct(Wpjb_Model_Payment $data = null)
     {
         self::_init();
-        $sandbox = Wpjb_Project::getInstance()->conf("payfast_sandbox");
         
+        add_filter("wpja_form_init_config_payment", array($this,"payfast_config"));
+        add_filter("wpjb_list_currency", array($this,"currency"));
+        $sandbox = Wpjb_Project::getInstance()->conf("payfast_sandbox");
         $this->setEnviroment($sandbox);        
         $this->_data = $data;
     }
@@ -94,6 +96,9 @@ class Wpjb_Payment_PayFast implements Wpjb_Payment_Interface
         $emp->addAccess($object->extend);
         $emp->save();
     }
+    
+    
+    
     
     /**
      * Returns array representing given currency
@@ -186,7 +191,63 @@ class Wpjb_Payment_PayFast implements Wpjb_Payment_Interface
     {
         return "https://" . $this->getDomain() . "/eng/process";
     }
-
+    
+    /**
+     * Sets the available configurations for using the PayFast Plugin
+     *
+     * @author Ron Darby
+     */
+     
+    public function payfast_config($form) {
+        $instance = Wpjb_Project::getInstance();
+        $payfast = new Daq_Form_Element("payfast_merchant_id");
+        $payfast->setValue($instance->getConfig("payfast_merchant_id"));
+        $payfast->setLabel(__("PayFast Merchant ID", WPJB_DOMAIN));
+        
+        $form->addElement($payfast);
+        
+         $payfast = new Daq_Form_Element("payfast_merchant_key");
+        $payfast->setValue($instance->getConfig("payfast_merchant_key"));
+        $payfast->setLabel(__("PayFast Merchant Key", WPJB_DOMAIN));
+        
+        $form->addElement($payfast);
+        
+        $payfast = new Daq_Form_Element("payfast_sandbox",Daq_Form_Element::TYPE_RADIO);
+        $payfast->setValue($instance->getConfig("payfast_sandbox"));
+        $payfast->setLabel(__("PayFast Sandbox/Live", WPJB_DOMAIN));
+        $payfast->addOption(0,'true','Sandbox');
+        $payfast->addOption(1,'false','Live');
+        $form->addElement($payfast);
+        
+        $payfast = new Daq_Form_Element("payfast_debug",Daq_Form_Element::TYPE_RADIO);
+        $payfast->setValue($instance->getConfig("payfast_debug"));
+        $payfast->setLabel(__("PayFast ITN Debug", WPJB_DOMAIN));
+        $payfast->addOption(0,'true','On');
+        $payfast->addOption(1,'false','Off');
+        $payfast->setHint("If set to 'On', debug will output a file located at '/wp-content/plugins/wpjobboard/application/libraries/Payment/payfast.log' when
+        an ITN call is made from PayFast.");
+        $form->addElement($payfast);
+        
+        
+        $payfast = new Daq_Form_Element("payfast_button",Daq_Form_Element::TYPE_RADIO);
+        $payfast->setValue($instance->getConfig("payfast_button"));
+        $payfast->setLabel(__("PayFast Pay Now Button", WPJB_DOMAIN));
+        $payfast->addOption(0,'light','<img src="'.site_url().'/wp-content/plugins/wpjobboard/application/public/paynow-light.png" alt="PayFast Pay Now light" align="top" />');
+        $payfast->addOption(1,'dark','<img src="'.site_url().'/wp-content/plugins/wpjobboard/application/public/paynow-dark.png" alt="PayFast Pay Now dark" align="top" />');
+        $form->addElement($payfast);
+        return $form;
+    }
+    
+    /**
+     * Includes the ZAR currency for use with the PayFast Plugin
+     *
+     * @author Ron Darby
+     */
+    
+    function payfast_currency($currency) {        
+        $currency[] = array('code'=>'ZAR','name'=>__('South African Rands',WPJB_DOMAIN),'symbol'=>'R');
+        return $currency;    
+    }
 
     /**
      * Procesess PayFast transaction.
@@ -322,12 +383,7 @@ class Wpjb_Payment_PayFast implements Wpjb_Payment_Interface
                         $payment->save();
                         pflog('PayFast ITN Verified Transaction ID: '.$transaction_id.' [' . $_POST['payment_status'] . '] ');
                         exit;
-                        return false;
-                        
-                        
-                        
-                        
-                                   
+                        return false;                                
                     break;    
     			case 'FAILED':
                      throw new Exception('PayFast ITN Verified Transaction ID: '.$transaction_id.' [' . $_POST['payment_status'] . '] ');
@@ -369,7 +425,8 @@ class Wpjb_Payment_PayFast implements Wpjb_Payment_Interface
             'item_name'=>$product
         );
         $secureString = '';
-        foreach($varArray as $k=>$v){
+        foreach($varArray as $k=>$v)
+        {
             $html.= '<input type="hidden" name="'.$k.'" value="'.$v.'" />';
             $secureString .= $k.'='.urlencode($v).'&';
         }
@@ -391,8 +448,7 @@ class Wpjb_Payment_PayFast implements Wpjb_Payment_Interface
     public function setEnviroment($env)
     {
         $this->sandbox = $env;
-    }
-
+    }    
 }
 
 ?>
