@@ -1,7 +1,7 @@
 <?php
 
 /**
- * payfast_common.inc
+ * PayFast.php
  *
  * Description of PayFast
  * 

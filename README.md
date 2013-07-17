@@ -1,7 +1,7 @@
 mod-wpjobboard
 ==============
 
-PayFast WP Job Board Module v1.1.0 for WP Job Board v1.1.0
+PayFast WP Job Board Module v1.1.0 for WP Job Board v3.6.0 and v4.0.3
 --------------------------------------------------------------
 Copyright © 2013 PayFast (Pty) Ltd
 
