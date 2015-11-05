@@ -433,8 +433,10 @@ class Wpjb_Payment_PayFast implements Wpjb_Payment_Interface
        
         $secureString = substr( $secureString, 0, -1 );
         $secureSig = md5($secureString);
+        $userAgent = 'WP-Jobboard 3.x';
         
         $html .= '<input type="hidden" name="signature" value="'.$secureSig.'" />';
+        $html .= '<input type="hidden" name="user_agent" value="'.$userAgent.'" />';
         $html .= '<input type="image" src="'.site_url().'/wp-content/plugins/wpjobboard/application/public/paynow-'.Wpjb_Project::getInstance()->conf("payfast_button").'.png" />';
         $html .= '</form>';
         return $html;

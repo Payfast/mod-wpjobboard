@@ -213,8 +213,10 @@ class Payment_PayFast extends Wpjb_Payment_Abstract
        
         $secureString = substr( $secureString, 0, -1 );
         $secureSig = md5($secureString);
+        $userAgent = 'WP-Jobboard 4.x';
         
         $html .= '<input type="hidden" name="signature" value="'.$secureSig.'" />';
+        $html .= '<input type="hidden" name="user_agent" value="'.$userAgent.'" />';
         $html .= '<div style="float:right;">Pay now with:&nbsp;<input title="Click Here to Pay" type="image" src="https://www.payfast.co.za/images/logo/PayFast_Logo_75.png" align="bottom" /></div>';
         $html .= '</form>';
         return $html;
