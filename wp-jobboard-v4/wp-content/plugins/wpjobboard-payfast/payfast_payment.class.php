@@ -197,7 +197,7 @@ class Payment_PayFast extends Wpjb_Payment_Abstract
         $varArray = array(
             'merchant_id'=>$merchant['id'],
             'merchant_key'=>$merchant['key'],
-            'return_url'=> wpjb_link_to("step_complete", $this->_data),
+            'return_url'=> wpjb_link_to("employer_panel"),
             'cancel_url'=> home_url(),
             'notify_url'=> admin_url('admin-ajax.php')."?".http_build_query($arr),
             'm_payment_id'=>$this->_data->getId(),
@@ -208,7 +208,7 @@ class Payment_PayFast extends Wpjb_Payment_Abstract
         foreach($varArray as $k=>$v)
         {
             $html.= '<input type="hidden" name="'.$k.'" value="'.$v.'" />';
-            $secureString .= $k.'='.urlencode($v).'&';
+            $secureString .= $k .'=' . urlencode( stripslashes( trim( $v ) ) ) . '&';
         }
        
         $secureString = substr( $secureString, 0, -1 );
@@ -217,7 +217,7 @@ class Payment_PayFast extends Wpjb_Payment_Abstract
         
         $html .= '<input type="hidden" name="signature" value="'.$secureSig.'" />';
         $html .= '<input type="hidden" name="user_agent" value="'.$userAgent.'" />';
-        $html .= '<div style="float:right;">Pay now with:&nbsp;<input title="Click Here to Pay" type="image" src="https://www.payfast.co.za/images/logo/PayFast_Logo_75.png" align="bottom" /></div>';
+        $html .= '<div><p><strong>Pay now with:</strong></p><input title="Click Here to Pay" type="image" src="https://www.payfast.co.za/images/logo/PayFast_Logo_150.png" align="bottom" style="width:initial;"/></div>';
         $html .= '</form>';
         return $html;
      }
