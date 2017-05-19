@@ -24,9 +24,9 @@ INTEGRATION:
 
 
 ******************************************************************************
-*                                                                            *
-*    Please see the URL below for all information concerning this module:    *
-*                                                                            *
-*           https://www.payfast.co.za/shopping-carts/wp-job-board/           *
-*                                                                            *
+
+    Please see the URL below for all information concerning this module:
+
+           https://www.payfast.co.za/shopping-carts/wp-job-board/
+
 ******************************************************************************
