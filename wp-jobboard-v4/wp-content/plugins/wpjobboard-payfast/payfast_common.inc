@@ -2,15 +2,15 @@
 /**
  * payfast_common.inc
  *
- * @author     Jonathan Smit
+ * @author     Jonathan Smit, Cate Faull - PayFast
  */
 
 //// Create user agent string
 // User agent constituents (for cURL)
 define( 'PF_SOFTWARE_NAME', 'WP Job Board' );
-define( 'PF_SOFTWARE_VER', "3.6.0" );
-define( 'PF_MODULE_NAME', 'PayFast-WP-Job-Board' );
-define( 'PF_MODULE_VER', '1.0.0' );
+define( 'PF_SOFTWARE_VER', '4.x' );
+define( 'PF_MODULE_NAME', 'PF_WPJB' );
+define( 'PF_MODULE_VER', '1.1.0' );
 
 // Features
 // - PHP
@@ -26,9 +26,8 @@ if( in_array( 'curl', get_loaded_extensions() ) )
 else
     $pfFeatures .= ' nocurl;';
 
-// Create user agrent
+// Create user agent
 define( 'PF_USER_AGENT', PF_SOFTWARE_NAME .'/'. PF_SOFTWARE_VER .' ('. trim( $pfFeatures ) .') '. PF_MODULE_NAME .'/'. PF_MODULE_VER );
-
 
 // General Defines
 define( 'PF_TIMEOUT', 15 );
@@ -50,7 +49,7 @@ define( 'PF_ERR_ORDER_PROCESSED', 'This order has already been processed' );
 define( 'PF_ERR_PDT_FAIL', 'PDT query failed' );
 define( 'PF_ERR_PDT_TOKEN_MISSING', 'PDT token not present in URL' );
 define( 'PF_ERR_SESSIONID_MISMATCH', 'Session ID mismatch' );
-define( 'PF_ERR_UNKNOWN', 'Unkown error occurred' );
+define( 'PF_ERR_UNKNOWN', 'Unknown error occurred' );
 
     // General
 define( 'PF_MSG_OK', 'Payment was successful' );
@@ -60,9 +59,6 @@ define( 'PF_MSG_PENDING',
     ' Transaction Notification when the payment status changes to'.
     ' "Completed", or "Failed"' );
     
-
-
-
 /**
  * pflog
  *
@@ -130,14 +126,14 @@ function pfGetData()
  * 
  * @author Jonathan Smit
  */
-function pfValidSignature( $pfData = null, &$pfParamString = null )
+function pfValidSignature( $pfData = null, &$tempParamString = null, $pfPassPhrase = null )
 {
     // Dump the submitted variables and calculate security signature
     foreach( $pfData as $key => $val )
     {
         if( $key != 'signature' )
         {
-            $pfParamString .= $key .'='. urlencode( $val ) .'&';
+            $tempParamString .= $key .'='. urlencode( $val ) .'&';
         }
         else
         {
@@ -146,14 +142,22 @@ function pfValidSignature( $pfData = null, &$pfParamString = null )
     }
 
     // Remove the last '&' from the parameter string
-    $pfParamString = substr( $pfParamString, 0, -1 );
+    $tempParamString = substr( $tempParamString, 0, -1 );
+    if ( is_null( $pfPassPhrase ) )
+    {
+        $pfParamString = $tempParamString;
+    }
+    else
+    {
+        $pfParamString = $tempParamString."&passphrase=".urlencode( $pfPassPhrase );
+    }
     $signature = md5( $pfParamString );
     
     $result = ( $pfData['signature'] == $signature );
 
     pflog( 'Signature = '. ( $result ? 'valid' : 'invalid' ) );
-    
-    
+    pflog( 'PayFast Parameter String = '.$pfParamString );
+
     return( $result );
 }
 
@@ -166,9 +170,8 @@ function pfValidSignature( $pfData = null, &$pfParamString = null )
  */
 function pfValidData( $pfHost = 'www.payfast.co.za', $pfParamString = '' )
 {
-
     pflog( 'Host = '. $pfHost );
-    
+    pflog( 'Parameter String = '. $pfParamString );
 
     // Use cURL (if available)
     if( defined( 'PF_CURL' ) )
@@ -177,12 +180,12 @@ function pfValidData( $pfHost = 'www.payfast.co.za', $pfParamString = '' )
         $url = 'https://'. $pfHost .'/eng/query/validate';       
         // Create default cURL object
         $ch = curl_init();
-        // Set cURL options - Use curl_setopt for freater PHP compatibility
+        // Set cURL options - Use curl_setopt for greater PHP compatibility
         // Base settings
         curl_setopt( $ch, CURLOPT_USERAGENT, PF_USER_AGENT );  // Set user agent
         curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );      // Return output as string rather than outputting it
         curl_setopt( $ch, CURLOPT_HEADER, false );             // Don't include header in output
-        curl_setopt( $ch, CURLOPT_SSL_VERIFYHOST, 2);
+        curl_setopt( $ch, CURLOPT_SSL_VERIFYHOST, true);
         curl_setopt( $ch, CURLOPT_SSL_VERIFYPEER, false );
         
         // Standard settings

@@ -2,6 +2,8 @@
 
 /**
  * Class Config_PayFast
+ *
+ * @author     Ron Darby, Cate Faull - PayFast
  **/
 
 class Config_PayFast extends Wpjb_Form_Abstract_Payment
@@ -9,9 +11,6 @@ class Config_PayFast extends Wpjb_Form_Abstract_Payment
     public function init()
     {
         parent::init();
-        
-        parent::init();
-        
 
         $this->addGroup("payfast", __("PayFast", "wpjobboard"));
         
@@ -23,6 +22,11 @@ class Config_PayFast extends Wpjb_Form_Abstract_Payment
         $e = $this->create("payfast_merchant_key");
         $e->setValue($this->conf("payfast_merchant_key"));
         $e->setLabel(__("PayFast Merchant Key", "wpjobboard"));
+        $this->addElement($e, "payfast");
+
+        $e = $this->create("payfast_passphrase");
+        $e->setValue($this->conf("payfast_passphrase"));
+        $e->setLabel(__("PayFast Passphrase", "wpjobboard"));
         $this->addElement($e, "payfast");
 
         $this->_env = array(
