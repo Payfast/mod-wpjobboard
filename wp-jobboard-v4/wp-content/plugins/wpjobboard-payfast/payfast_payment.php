@@ -2,7 +2,7 @@
 /**
  * payfast_payment.php
  * 
- * @author     Ron Darby, Cate Faull - PayFast
+ * @author     Ron Darby - PayFast
  */
 
 function wpjb_payment_payfast($list) {

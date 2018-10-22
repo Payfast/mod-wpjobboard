@@ -1,9 +1,4 @@
 <?php
-/**
- * payfast_payment.class.php
- *
- * @author     Ron Darby, Cate Faull - PayFast
- */
 
 include_once dirname( __FILE__ ).'/payfast_common.inc';
 require_once dirname( __FILE__ ).'/payfast_admin_controll.php';
@@ -12,7 +7,7 @@ class Payment_PayFast extends Wpjb_Payment_Abstract
 {
      public function __construct( Wpjb_Model_Payment $data = null )
      {
-       $this->_data = $data; 
+       $this->_data = $data;
      }
 
      public function getEngine()
@@ -91,24 +86,25 @@ class Payment_PayFast extends Wpjb_Payment_Abstract
         if( !$pfError && !$pfDone )
         {
             pflog( 'Get posted data' );
-        
+
             // Posted variables from ITN
             $pfData = pfGetData();
 
             pflog( 'PayFast Data: '. print_r( $pfData, true ) );
-        
+
             if( $pfData === false )
             {
                 $pfError = true;
                 $pfErrMsg = PF_ERR_BAD_ACCESS;
             }
         }
-       
+
         //// Verify security signature
         if( !$pfError && !$pfDone )
         {
             pflog( 'Verify security signature' );
 
+            $merchant = $this->getMerchant();
             $passphrase = $merchant['passphrase'];
             $pfPassPhrase = empty( $passphrase ) ? null : $passphrase;
         
@@ -136,28 +132,28 @@ class Payment_PayFast extends Wpjb_Payment_Abstract
         if( !$pfError )
         {
             pflog( 'Verify data received' );
-        
+
             $pfValid = pfValidData( $this->getUrl(), $pfParamString );
-        
+
             if( !$pfValid )
             {
                 $pfError = true;
                 $pfErrMsg = PF_ERR_BAD_ACCESS;
             }
         }
-        
+
         //// Check data against internal order
         if( !$pfError && !$pfDone )
         {
             pflog( 'Check data against internal order' );
-          
+
             // Check order amount
             if( !pfAmountsEqual( $pfData['amount_gross'],$this->_data->payment_sum ) )
             {
                 $pfError = true;
                 $pfErrMsg = PF_ERR_AMOUNT_MISMATCH;
-            }          
-            
+            }
+
         }
         
         if ( $pfError )
@@ -210,7 +206,7 @@ class Payment_PayFast extends Wpjb_Payment_Abstract
 
         $html = "";
         $html .= '<form action="https://'.$this->getUrl().'/eng/process" method="post">';
-        
+
         $varArray = array(
             'merchant_id'=>$merchant['id'],
             'merchant_key'=>$merchant['key'],
@@ -219,7 +215,8 @@ class Payment_PayFast extends Wpjb_Payment_Abstract
             'notify_url'=> admin_url( 'admin-ajax.php' )."?".http_build_query( $arr ),
             'm_payment_id'=>$this->_data->getId(),
             'amount'=>$this->_data->payment_sum-$this->_data->payment_paid,
-            'item_name'=>$product
+            'item_name'=>$product,
+            'custom_str1'=>constant( 'PF_MODULE_NAME' ).'_'.constant( 'PF_SOFTWARE_VER' ).'_'.constant( 'PF_MODULE_VER' )
         );
         $secureString = '';
         foreach( $varArray as $k=>$v )

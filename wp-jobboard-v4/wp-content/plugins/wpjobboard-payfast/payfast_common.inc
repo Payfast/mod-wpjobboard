@@ -2,7 +2,7 @@
 /**
  * payfast_common.inc
  *
- * @author     Jonathan Smit, Cate Faull - PayFast
+ * @author     Jonathan Smit
  */
 
 //// Create user agent string
@@ -58,7 +58,7 @@ define( 'PF_MSG_PENDING',
     'The payment is pending. Please note, you will receive another Instant'.
     ' Transaction Notification when the payment status changes to'.
     ' "Completed", or "Failed"' );
-    
+
 /**
  * pflog
  *

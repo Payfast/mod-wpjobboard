@@ -2,8 +2,6 @@
 
 /**
  * Class Config_PayFast
- *
- * @author     Ron Darby, Cate Faull - PayFast
  **/
 
 class Config_PayFast extends Wpjb_Form_Abstract_Payment
