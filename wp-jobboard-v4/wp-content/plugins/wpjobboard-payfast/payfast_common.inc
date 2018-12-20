@@ -10,7 +10,7 @@
 define( 'PF_SOFTWARE_NAME', 'WP Job Board' );
 define( 'PF_SOFTWARE_VER', '4.x' );
 define( 'PF_MODULE_NAME', 'PF_WPJB' );
-define( 'PF_MODULE_VER', '1.1.0' );
+define( 'PF_MODULE_VER', '2.1.1' );
 
 // Features
 // - PHP
