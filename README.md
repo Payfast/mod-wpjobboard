@@ -1,5 +1,4 @@
-mod-wpjobboard
-==============
+# mod-wpjobboard
 
 PayFast WP Job Board Module v2.1.1 for WP Job Board v3.6.0 and v4.0.3
 --------------------------------------------------------------
@@ -19,11 +18,4 @@ INTEGRATION:
 - Username: sbtu01@payfast.co.za
 - Password: clientpass
 
-
-******************************************************************************
-
-    Please see the URL below for all information concerning this module:
-
-           https://www.payfast.co.za/shopping-carts/wp-job-board/
-
-******************************************************************************
+Please [click here](https://payfast.io/integration/shopping-carts/wp-job-board/) for more information concerning this module.
