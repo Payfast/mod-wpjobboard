@@ -1,7 +1,6 @@
 # mod-wpjobboard
 
 PayFast WP Job Board Module v2.1.1 for WP Job Board v3.6.0 and v4.0.3
---------------------------------------------------------------
 
 INTEGRATION:
 1. Unzip the module to a temporary location on your computer
