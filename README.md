@@ -1,6 +1,6 @@
 # mod-wpjobboard
 
-## Payfast module v2.2.0 for WP Job Board v5.11.2
+## Payfast module v2.3.0 for WP Job Board v5.11.4
 
 This is the Payfast module for WP Job Board. Please feel free
 to [contact the Payfast support team](https://payfast.io/contact/) should you require any assistance.

@@ -4,13 +4,15 @@ require_once dirname(__FILE__) . '/payfast_admin_controll.php';
 require_once dirname(__FILE__) . '/vendor/autoload.php';
 require_once dirname(__FILE__) . '/payfast_exception.php';
 
-use Payfast\PayfastCommon\PayfastCommon;
+use Payfast\PayfastCommon\Aggregator\Request\PaymentRequest;
 
 class Payment_Payfast extends Wpjb_Payment_Abstract
 {
+    const PF_MODULE_VER = '2.3.0';
+
     public function __construct(Wpjb_Model_Payment $data = null)
     {
-        $this->_data = $data;
+        $this->_data        = $data;
     }
 
     public function getEngine()
@@ -79,118 +81,194 @@ class Payment_Payfast extends Wpjb_Payment_Abstract
 
     public function processTransaction()
     {
-        $post = $this->_post; // $_POST
-
+        $post = $this->_post;
         $this->checkPaymentId($post["pf_payment_id"]);
-        $pfError       = false;
-        $pfErrMsg      = '';
-        $pfDone        = false;
-        $pfData        = array();
+
+        $isDebugMode = $this->conf('payfast_debug') == 1;
+        $paymentRequest = new PaymentRequest($isDebugMode);
+        $paymentRequest->pflog('Payfast ITN call received');
+
+        $pfError = false;
+        $pfDone = false;
+        $pfErrMsg = '';
         $pfParamString = '';
+        $pfData = [];
 
-        $isDebugmode   = $this->conf('payfast_debug') == 1;
-        $payfastCommon = new PayfastCommon($isDebugmode);
-
-        $payfastCommon->pflog('Payfast ITN call received');
-
-        //// Notify Payfast that information has been received
         $this->notifyPF($pfError, $pfDone);
-
-        //// Get data sent by Payfast
-        if (!$pfError && !$pfDone) {
-            $payfastCommon->pflog('Get posted data');
-
-            // Posted variables from ITN
-            $pfData = $payfastCommon->pfGetData();
-
-            $payfastCommon->pflog('Payfast Data: ' . print_r($pfData, true));
-
-            if ($pfData === false) {
-                $pfError  = true;
-                $pfErrMsg = $payfastCommon::PF_ERR_BAD_ACCESS;
-            }
+        $pfData = $this->handlePostedData($paymentRequest, $pfError, $pfErrMsg, $pfDone);
+        if(!$pfError){
+            $this->handleSignatureCheck($paymentRequest, $pfData, $pfParamString, $pfError, $pfErrMsg, $pfDone);
+        }
+        if(!$pfError){
+            $this->handleModuleDataCheck($paymentRequest, $pfParamString, $pfError, $pfErrMsg);
+        }
+        if(!$pfError){
+            $this->handleAmountCheck($paymentRequest, $pfData, $pfError, $pfErrMsg, $pfDone);
         }
 
-        //// Verify security signature
-        if (!$pfError && !$pfDone) {
-            $payfastCommon->pflog('Verify security signature');
-
-            $merchant     = $this->getMerchant();
-            $passphrase   = $merchant['passphrase'];
-            $pfPassPhrase = $passphrase ?? null;
-
-            // If signature different, log for debugging
-            if (!$payfastCommon->pfValidSignature($pfData, $pfParamString, $pfPassPhrase)) {
-                $pfError  = true;
-                $pfErrMsg = $payfastCommon::PF_ERR_INVALID_SIGNATURE;
-            }
-        }
-
-        //// Verify data received
-        if (!$pfError) {
-            $payfastCommon->pflog('Verify data received');
-
-            $moduleInfo = [
-                "pfSoftwareName"       => 'WP Job Board',
-                "pfSoftwareVer"        => '4.x',
-                "pfSoftwareModuleName" => 'PF_WPJB',
-                "pfModuleVer"          => '2.2.0',
-            ];
-
-
-            $pfValid = $payfastCommon->pfValidData($moduleInfo, $this->getUrl(), $pfParamString);
-
-            if (!$pfValid) {
-                $pfError  = true;
-                $pfErrMsg = $payfastCommon::PF_ERR_BAD_ACCESS;
-            }
-        }
-
-        //// Check data against internal order
-        if (!$pfError && !$pfDone) {
-            $payfastCommon->pflog('Check data against internal order');
-
-            // Check order amount
-            if (!$payfastCommon->pfAmountsEqual($pfData['amount_gross'], $this->_data->payment_sum)) {
-                $pfError  = true;
-                $pfErrMsg = $payfastCommon::PF_ERR_AMOUNT_MISMATCH;
-            }
-        }
 
         if ($pfError) {
+            $paymentRequest->pflog('Error: ' . $pfErrMsg); // Log the error message
             throw new PayfastException($pfErrMsg);
         }
 
-        //// Check status and update order
-        if (!$pfError && !$pfDone) {
-            $payfastCommon->pflog('Check status and update order');
+        return $this->handleStatusUpdate($paymentRequest, $pfData, $pfDone);
 
-
-            $transaction_id = $pfData['pf_payment_id'];
-
-            match ($pfData['payment_status']) {
-                'COMPLETE' => [
-                    "external_id" => $transaction_id,
-                    "paid"        => $post["amount_gross"]
-                ],
-                'FAILED' => throw new PayfastException(
-                    'Payfast ITN Verified Transaction ID: '
-                    . $transaction_id . ' [' . $_POST['payment_status'] . '] '
-                ),
-                default => throw new PayfastException('Something went wrong with the Payfast ITN')
-            };
-
-            $payfastCommon->pflog(
-                'Payfast ITN Verified Transaction ID: '
-                . $transaction_id . ' [' . $_POST['payment_status'] . '] '
-            );
+    }
+    private function handlePostedData($paymentRequest, &$pfError, &$pfErrMsg, $pfDone)
+    {
+        if ($pfError || $pfDone) {
+            return [];
         }
 
-        return false;
+        $paymentRequest->pflog('Get posted data');
+        $pfData = $paymentRequest->pfGetData();
+        $paymentRequest->pflog('Payfast Data: ' . print_r($pfData, true));
+
+        if ($pfData === false) {
+            $pfError = true;
+            $pfErrMsg = PaymentRequest::PF_ERR_BAD_ACCESS;
+            $paymentRequest->pflog('Error: ' . PaymentRequest::PF_ERR_BAD_ACCESS);
+        }
+
+        return $pfData;
+    }
+
+    private function handleSignatureCheck($paymentRequest, $pfData, &$pfParamString, &$pfError, &$pfErrMsg, $pfDone)
+    {
+        if ($pfError || $pfDone) {
+            return;
+        }
+
+        $paymentRequest->pflog('Verify security signature');
+        $passphrase = $this->getMerchant()['passphrase'] ?? null;
+
+        if (!$paymentRequest->pfValidSignature($pfData, $pfParamString, $passphrase)) {
+            $pfError = true;
+            $pfErrMsg = PaymentRequest::PF_ERR_INVALID_SIGNATURE;
+            $paymentRequest->pflog('Error: ' . PaymentRequest::PF_ERR_INVALID_SIGNATURE);
+        }
+    }
+
+    private function handleModuleDataCheck($paymentRequest, $pfParamString, &$pfError, &$pfErrMsg)
+    {
+        if ($pfError) {
+            return;
+        }
+
+        $paymentRequest->pflog('Verify data received');
+        $moduleInfo = [
+            "pfSoftwareName" => 'WP Job Board',
+            "pfSoftwareVer" => '4.x',
+            "pfSoftwareModuleName" => 'PF_WPJB',
+            "pfModuleVer" => self::PF_MODULE_VER,
+        ];
+
+        if (!$paymentRequest->pfValidData($moduleInfo, $this->getUrl(), $pfParamString)) {
+            $pfError = true;
+            $pfErrMsg = PaymentRequest::PF_ERR_BAD_ACCESS;
+            $paymentRequest->pflog('Error: ' . PaymentRequest::PF_ERR_BAD_ACCESS);
+        }
+    }
+
+    private function handleAmountCheck($paymentRequest, $pfData, &$pfError, &$pfErrMsg, $pfDone)
+    {
+        if ($pfError || $pfDone) {
+            return;
+        }
+
+        $paymentRequest->pflog('Check data against internal order');
+        if (!$paymentRequest->pfAmountsEqual($pfData['amount_gross'], $this->_data->payment_sum)) {
+            $pfError = true;
+            $pfErrMsg = PaymentRequest::PF_ERR_AMOUNT_MISMATCH;
+            $paymentRequest->pflog('Error: ' . PaymentRequest::PF_ERR_AMOUNT_MISMATCH);
+        }
+    }
+
+    private function handleStatusUpdate($paymentRequest, $pfData, $pfDone)
+    {
+        if ($pfDone) {
+            return;
+        }
+
+        $paymentRequest->pflog('Check status and update order');
+        $transaction_id = $pfData['pf_payment_id'];
+        $job_id = $this->_data->object_id;
+
+        try {
+            switch ($pfData['payment_status']) {
+                case 'COMPLETE':
+                    $paymentRequest->pflog("Transaction $transaction_id completed");
+
+                    $this->_data->payment_paid = $pfData['amount_gross'];
+                    $this->_data->external_id = $transaction_id;
+                    $this->_data->paid_at = current_time('mysql', true);
+                    $this->_data->status = 2; // Mark payment as completed
+                    $this->_data->save();
+                    $this->_data->log(__("Payment verified by Payfast ITN.", "wpjobboard"));
+
+                    if ($job_id) {
+                        $job = new Wpjb_Model_Job($job_id);
+                        if ($job->exists()) {
+                            $job->is_active = 1;
+                            $job->is_approved = 1;
+                            $job->save();
+
+                            $paymentRequest->pflog("Job ID $job_id activated.");
+                        } else {
+                            $paymentRequest->pflog("Warning: Job ID $job_id not found.");
+                        }
+                    }
+
+                    return [
+                        "paid" => $pfData['amount_gross'],
+                        "external_id" => $transaction_id
+                    ];
+
+                case 'FAILED':
+                    $paymentRequest->pflog("Transaction $transaction_id failed");
+
+                    $this->_data->status = 4; // Failed
+                    $this->_data->save();
+
+                    if ($job_id) {
+                        $job = new Wpjb_Model_Job($job_id);
+                        if ($job->exists()) {
+                            $job->is_active = 0;
+                            $job->save();
+                        }
+                    }
+
+                    throw new PayfastException("Transaction $transaction_id [FAILED]");
+                    break;
+
+                default:
+                    throw new PayfastException("Unexpected payment status: {$pfData['payment_status']}");
+            }
+        } catch (Exception $e) {
+            $paymentRequest->pflog('Error updating status: ' . $e->getMessage());
+            throw $e;
+        }
+
+        $paymentRequest->pflog("Verified Transaction ID: $transaction_id [{$pfData['payment_status']}]");
+    }
+
+    public static function enqueue_payfast_script() {
+        // Register and enqueue the script
+        wp_enqueue_script(
+            'wpjb-payfast-auto-submit',
+            plugins_url('assets/js/wpjb-payfast-auto-submit.js', __FILE__),
+            array('jquery'),
+            self::PF_MODULE_VER,
+            true
+        );
     }
 
     public function render()
     {
+        // Enqueue the auto-submit script
+        add_action('wp_footer', array(__CLASS__, 'enqueue_payfast_script'));
+
         $arr = array(
             "action" => "wpjb_payment_accept",
             "engine" => $this->getEngine(),
@@ -203,13 +281,23 @@ class Payment_Payfast extends Wpjb_Payment_Abstract
         $merchant = $this->getMerchant();
 
         $html = "";
-        $html .= '<form action="https://' . $this->getUrl() . '/eng/process" method="post">';
+        // Start wrapper for info and spinner
+        $html .= '<div class="wpjb-flash-info">';
+        $imageUrl = "https://payfast.io/wp-content/uploads/2024/04/Full-Colour-on-White.svg";
+        $html .= '<div style="text-align:center;margin-bottom:16px;"><img src="' . esc_url($imageUrl) . '" alt="Payfast" style="max-width:180px;height:auto;"></div>';
+        $html .= '<div class="wpjb-flash-icon"><span class="wpjb-glyphs wpjb-icon-spinner wpjb-animate-spin"></span></div>';
+        $html .= '<div class="wpjb-flash-body">';
+        $html .= '<p><strong>' . __("Your order has been placed.", "wpjobboard") . '</strong></p>';
+        $html .= '<p>' . __("Please wait. You are now being redirected to Payfast.", "wpjobboard") . '</p>';
+        $html .= '</div>';
 
+        // Hide the form for auto-submit
+        $html .= '<form id="wpjb-payfast-auto-submit" class="wpjb-payment-auto-submit wpjb-none" action="https://' . $this->getUrl() . '/eng/process" method="post">';
         $varArray     = array(
             'merchant_id'  => $merchant['id'],
             'merchant_key' => $merchant['key'],
             'return_url'   => wpjb_link_to("employer_panel"),
-            'cancel_url'   => home_url(),
+            'cancel_url'   => home_url() . '/jobs/post-a-job/save/',
             'notify_url'   => admin_url('admin-ajax.php') . "?" . http_build_query($arr),
             'm_payment_id' => $this->_data->getId(),
             'amount'       => $this->_data->payment_sum - $this->_data->payment_paid,
@@ -232,17 +320,14 @@ class Payment_Payfast extends Wpjb_Payment_Abstract
         $secureSig = md5($secureString);
         $userAgent = 'WP-Jobboard 4.x';
 
-        $imageUrl = "https://payfast.io/wp-content/uploads/2024/04/Full-Colour-on-White.svg";
         $html     .= '<input type="hidden" name="signature" value="' . $secureSig . '" />';
         $html     .= '<input type="hidden" name="user_agent" value="' . $userAgent . '" />';
-        $html     .= '<div><p><strong>Pay now with:</strong></p>';
-        $html     .= '<input title="Click Here to Pay" type="image" src="' . $imageUrl . '" ';
-        $html     .= 'align="bottom" style="width:150px;"/></div>';
         $html     .= '</form>';
+        $html     .= '</div>'; // close .wpjb-flash-info
+
+        // Output a JS variable for the form ID (for the enqueued script)
+        $html .= '<script>window.wpjbPayfastFormId = "wpjb-payfast-auto-submit";</script>';
 
         return $html;
     }
-
 }
-
-

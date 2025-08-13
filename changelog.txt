@@ -1,7 +1,0 @@
-=====================================
-Date	  : Version: Description
-=====================================
-
-2024-08-01: v2.2.0 : Integration with the Payfast common library.
-                     Update for WP Job Board v5.11.2.
-                     Code quality and improvements.
