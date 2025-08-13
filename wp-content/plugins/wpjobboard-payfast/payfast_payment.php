@@ -3,7 +3,6 @@
  * payfast_payment.php
  *
  * @package Payfast Payment
- * @version 2.2.0
  *
  * @author {Payfast}
  */
@@ -14,7 +13,7 @@ Plugin URI: https://payfast.io/integration/plugins/wp-job-board/
 Description: This plugin is to integrate WP Job Board v4 with the Payfast Payment system. Please contact Payfast for assistance, support@payfast.help
 Author: Payfast
 Author URI: https://payfast.io/
-Version: 2.2.0
+Version: 2.3.0
 */
 
 function wpjb_payment_payfast($list)
